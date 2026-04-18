@@ -61,19 +61,27 @@ Cross-check totals against the Monarch web UI. If something's off, the client's
 `_flatten_transaction`/`_flatten_account_payload` or the model aliases may need
 adjustment — file a follow-up, don't paper over it.
 
-## 6. Seed targets so alerts can fire
+## 6. Create your local config file
+
+Copy the example and fill in your real account IDs, institutions, allocation targets,
+and watchlist. This file stays on your machine — the repo knows nothing about your
+specific accounts.
 
 ```bash
-.venv/bin/python -m monarch_insights.cli.main providers list           # show the connector plan
+cp examples/monarch_insights.yaml.example /config/monarch_insights.yaml  # on HA
+# or for CLI-only use:
+cp examples/monarch_insights.yaml.example ~/.config/monarch-insights/user.yaml
+```
+
+Edit the file to map Monarch account IDs (visible in `insight networth`) to display
+names, set your target asset allocation, add watchlist tickers, and tune alert
+thresholds. See the example file for every supported field.
+
+You can still seed watchlist + allocation via CLI if you prefer those stored in SQLite
+instead of YAML:
+
+```bash
 .venv/bin/python -m monarch_insights.cli.main watchlist add VTI --kind alert_move --move-threshold 3
-# Plus in Python if you prefer (set allocation targets):
-.venv/bin/python -c "
-from monarch_insights.supplements.store import SupplementStore
-s = SupplementStore()
-s.set_allocation_target('us_stock', 60, 5)
-s.set_allocation_target('intl_stock', 25, 5)
-s.set_allocation_target('bond', 15, 5)
-"
 ```
 
 ## 7. First gap scan
@@ -99,20 +107,24 @@ Token lands at `~/.config/monarch-insights/google_token.json`. Copy that file (p
 `google_client.json`) to the Pi if you're running the daemon there:
 
 ```bash
-scp ~/.config/monarch-insights/google_*.json \
-  homeassistant@192.168.1.109:~/.config/monarch-insights/
+scp ~/.config/monarch-insights/google_*.json <user>@<ha-host>:~/.config/monarch-insights/
 ```
 
-## 9. Wire Robinhood + Schwab
+## 9. Wire brokerage-specific providers
+
+If you use Robinhood:
 
 ```bash
 .venv/bin/python -m monarch_insights.cli.main bootstrap robinhood
+```
+
+If you use Schwab (requires a developer-portal approval first — separate from your
+Monarch account; the bootstrap prints the consent URL):
+
+```bash
 .venv/bin/python -m monarch_insights.cli.main bootstrap schwab \
   --client-id <app-key> --client-secret <secret>
 ```
-
-Schwab requires a developer-portal approval first (separate from your Monarch account).
-The bootstrap prints the consent URL.
 
 ## 10. Start the daemon (optional for now, scheduled via SystemD later)
 
@@ -132,9 +144,11 @@ journalctl --user -u monarch-insights -f
 
 ## 11. Install the HA integration
 
+Easiest: install via HACS (repo is public, no token needed). If doing a direct file
+copy instead:
+
 ```bash
-scp -r custom_components/monarch_insights \
-  homeassistant@192.168.1.109:/config/custom_components/
+scp -r custom_components/monarch_insights <user>@<ha-host>:/config/custom_components/
 ```
 
 Restart HA, then Settings → Devices & Services → Add Integration → Monarch Insights.

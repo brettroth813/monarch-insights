@@ -112,7 +112,7 @@ async def main() -> None:
         header("60-DAY CHECKING BALANCE FORECAST")
         forecaster = CashflowForecaster(low_balance_floor=Decimal(2000))
         # Use Chase Checking as primary
-        primary = next(a for a in accounts if a.id == "ACT_chase_checking")
+        primary = next(a for a in accounts if a.id == "ACT_checking_primary")
         days = forecaster.project(primary.current_balance or Decimal(0), recurring, horizon_days=60)
         danger = forecaster.low_balance_dates(days)
         print(f"  Starting balance: ${primary.current_balance:,.0f}")

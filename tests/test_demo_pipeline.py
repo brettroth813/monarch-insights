@@ -73,7 +73,7 @@ def test_cashflow_pipeline(dataset):
 
 
 def test_balance_forecast_runs(dataset):
-    primary = next(a for a in dataset["accounts"] if a.id == "ACT_chase_checking")
+    primary = next(a for a in dataset["accounts"] if a.id == "ACT_checking_primary")
     forecaster = CashflowForecaster(low_balance_floor=Decimal(2000))
     days = forecaster.project(primary.current_balance or Decimal(0), dataset["recurring"], horizon_days=30)
     assert len(days) == 31
@@ -124,7 +124,7 @@ def test_gap_detector_emits_known_requests(dataset):
 def test_alert_engine_runs_without_error(dataset):
     with tempfile.TemporaryDirectory() as tmp:
         cache = MonarchCache(path=Path(tmp) / "cache.db")
-        primary = next(a for a in dataset["accounts"] if a.id == "ACT_chase_checking")
+        primary = next(a for a in dataset["accounts"] if a.id == "ACT_checking_primary")
         ctx = AlertContext(
             accounts=dataset["accounts"],
             transactions=dataset["transactions"],

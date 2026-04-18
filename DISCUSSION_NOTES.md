@@ -33,18 +33,23 @@ We ship #1 and #5 first because they're cheap pings users feel every day; #2/#3 
 
 The router (`providers/market_data/router.py`) tries them in order with a 60-second TTL cache and skips any that raise `NotImplementedError`. So you can pass `[YFinanceProvider(), FinnhubProvider(key)]` and it'll fall back automatically.
 
-## 3. Account-by-account integration plan
+## 3. Account-by-account integration plan (general)
 
-| Institution | How we get data |
+The library supports several categories of institution out of the box. Map your own
+accounts in your local ``monarch_insights.yaml`` config (see
+``examples/monarch_insights.yaml.example``).
+
+| Category | How we get data |
 | --- | --- |
-| **Schwab** | Direct via official Trader API (developer.schwab.com OAuth dance once). Best source for trades + cost basis. |
-| **Robinhood** | `robin_stocks` for positions/orders/avg cost. Plus Gold gives you in-app Morningstar (manually). |
-| **Chase / Amex / Citi / Barclays** | No public APIs. We parse Gmail alerts via per-vendor regex rules in `providers/accounts/email_provider.py`. |
-| **Marcus** | Monarch's Plaid sync usually works. Email backup for HYS rate changes. |
-| **Bilt** | Email parsing for rent-payment + points emails. Useful for rewards optimization. |
-| **Toyota Financial Services** | Email statements + amortization. No API; payment-due alerts are reliable. |
+| **Full-service broker with developer API** | Direct via the broker's official OAuth API (e.g. Schwab Trader API). Best source for trades + cost basis. |
+| **Neobroker / mobile-first** | User/pass + MFA via the library's wrapper (e.g. ``robin_stocks`` for Robinhood). Pulls positions + average cost. |
+| **Traditional bank / major card issuer** | Usually no public API. Parse account-alert emails via per-vendor regex rules in ``providers/accounts/email_provider.py``. |
+| **High-yield savings / money-market** | Monarch's Plaid sync usually covers. Email backup for rate-change notifications. |
+| **Rewards / rent-payment cards** | Email parsing for statements + points emails; useful for rewards optimization. |
+| **Auto / personal loans** | Email statements + amortization. Payment-due alerts from monthly emails. |
 
-Run `monarch-insights providers list` for the directory.
+Run ``monarch-insights providers list`` for the built-in directory of recognised
+institutions.
 
 ## 4. Google integrations
 
@@ -75,7 +80,7 @@ Buy/sell signals (`signals/`) combine technical + fundamental + portfolio contex
 - **Watchlist tickers** — beyond what you hold, what do you want price-movement alerts on?
 - **Notification routing** — which HA `notify.*` service should warn-tier alerts go to? Mobile app, Pushover, Slack?
 - **Schwab developer registration** — needs your physical attention; we can't do it from here.
-- **Robinhood credentials handling** — we can prompt at first run and store via the Monarch-style encrypted session, or env vars, your call.
+- **Neobroker credentials handling** — we can prompt at first run and store via the Monarch-style encrypted session, or env vars, your call.
 - **Manual data — what to load first?** Cost basis for any held position older than your Monarch sync window. RSU grant schedule if applicable. Any K-1 / side-business income.
 
 ## 7. Known unknowns / risks
