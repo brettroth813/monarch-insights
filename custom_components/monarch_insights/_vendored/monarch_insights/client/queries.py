@@ -310,7 +310,6 @@ query Web_GetHoldings($accountIds: [UUID!]) {
             id
             account { id displayName }
             quantity
-            basis
             value
             costBasis
             ticker
@@ -319,8 +318,10 @@ query Web_GetHoldings($accountIds: [UUID!]) {
             typeDisplay
             closingPrice
             isManual
-            lastPricedAt
           }
+          # Note (Apr 2026, probed live): Monarch rejects `basis` and `lastPricedAt`
+          # on the nested Holding type here. `basis` is still valid at the parent
+          # aggregateHoldings.node level above, so we keep that one.
           security {
             id
             name
