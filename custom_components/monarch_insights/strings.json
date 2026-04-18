@@ -2,6 +2,10 @@
   "config": {
     "step": {
       "user": {
+        "title": "Choose how to authenticate",
+        "description": "Most users pick email + password. If your Monarch account is Apple-SSO-only and you don't have a working password, pick the token path."
+      },
+      "login": {
         "title": "Monarch credentials",
         "description": "Enter your Monarch Money email and password.",
         "data": {
@@ -16,10 +20,17 @@
           "mfa_method": "Method",
           "mfa_code": "Code"
         }
+      },
+      "token": {
+        "title": "Paste Monarch session token",
+        "description": "Open app.monarch.com in a browser, DevTools → Network → any graphql request → copy the value after 'Authorization: Token '. Token only; no prefix, no quotes.",
+        "data": {
+          "token": "Token"
+        }
       }
     },
     "error": {
-      "invalid_auth": "Email or password rejected by Monarch.",
+      "invalid_auth": "Monarch rejected those credentials.",
       "invalid_mfa": "MFA code rejected.",
       "unknown": "Unexpected error — check Home Assistant logs."
     }

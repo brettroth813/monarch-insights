@@ -1,34 +1,38 @@
 """Config flow for the Monarch Insights Home Assistant integration.
 
-Three-step flow:
+Offers two starting paths from the menu:
 
-1. ``async_step_user`` collects email + password. We call ``MonarchAuth.login`` which
-   either (a) succeeds, (b) raises :class:`MonarchMFARequired` — branch to MFA step,
-   or (c) raises :class:`MonarchAuthError` — show the invalid-auth error.
-2. ``async_step_mfa`` collects the TOTP / email-OTP code and finishes login.
-3. On success we store the **token** inside the entry's ``data`` dict (not the password)
-   so the coordinator can recreate the :class:`MonarchAuth` object without prompting
-   again. We deliberately avoid writing the on-disk session file from inside HA because
-   HA containers on HAOS have a different ``$HOME`` than the user's shell; keeping the
-   token in HA storage is both simpler and survives container restarts cleanly.
+1. **Email + password** (default): collect creds, call ``MonarchAuth.login``,
+   branch to an MFA step if Monarch demands one.
+2. **Paste existing token**: for users whose Monarch account is Apple-SSO-only
+   (no working password) or who'd rather reuse a browser session token. The
+   token is validated by calling ``me`` against Monarch before the entry is
+   created, so a bad paste fails fast with a clear error.
 
-A unique-id is set to the lower-cased email so "Add Integration" twice doesn't create
-two entries polling the same Monarch account.
+On either path, success stores ``token`` + ``device_uuid`` + ``email`` in the
+config entry data. The coordinator reconstitutes :class:`MonarchAuth` from
+there — we never touch the encrypted on-disk session file from HA.
+
+A unique-id is set to the lower-cased email so "Add Integration" twice is
+idempotent instead of doubling API load.
 """
 
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from monarch_insights.client.auth import MonarchAuth
+from monarch_insights.client.api import MonarchClient
+from monarch_insights.client.auth import MonarchAuth, Session
 from monarch_insights.client.exceptions import MonarchAuthError, MonarchMFARequired
 
 from .const import (
+    CONF_DEVICE_UUID,
     CONF_EMAIL,
     CONF_LOW_BALANCE_FLOOR,
     CONF_MFA_CODE,
@@ -36,6 +40,7 @@ from .const import (
     CONF_PASSWORD,
     CONF_PRIMARY_CHECKING_ID,
     CONF_REFRESH_INTERVAL_MIN,
+    CONF_TOKEN,
     DEFAULT_LOW_BALANCE_FLOOR,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
@@ -43,10 +48,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_TOKEN = "token"
-CONF_DEVICE_UUID = "device_uuid"
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
+STEP_LOGIN_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_EMAIL): str,
         vol.Required(CONF_PASSWORD): str,
@@ -60,33 +63,48 @@ STEP_MFA_DATA_SCHEMA = vol.Schema(
     }
 )
 
+STEP_TOKEN_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_TOKEN): str,
+    }
+)
+
 
 class MonarchInsightsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Interactive config flow with MFA branching."""
+    """Interactive config flow with MFA + token-override branches."""
 
     VERSION = 1
 
     def __init__(self) -> None:
         self._email: str | None = None
         self._password: str | None = None
-        # ``MonarchAuth`` caches the device UUID; we reuse a single instance across the
-        # user → MFA transition so both login posts share the same UUID (Monarch
-        # challenges new-device logins, so consistency matters here).
+        # Shared across user → MFA transition so both login posts use the same
+        # device UUID (Monarch challenges new-device logins, so consistency matters).
         self._auth: MonarchAuth | None = None
 
     async def async_step_user(self, user_input: dict | None = None):
+        """Entry point: offer the two auth paths as a menu."""
+        return self.async_show_menu(
+            step_id="user",
+            menu_options={
+                "login": "Sign in with email + password",
+                "token": "Paste an existing Monarch session token (advanced)",
+            },
+        )
+
+    # ------------------------------------------------------------------ login path
+
+    async def async_step_login(self, user_input: dict | None = None):
         """Collect email + password and try the first login leg."""
         errors: dict[str, str] = {}
         if user_input is not None:
             self._email = user_input[CONF_EMAIL].strip().lower()
             self._password = user_input[CONF_PASSWORD]
 
-            # Guard against duplicate entries — one Monarch account per HA install.
             await self.async_set_unique_id(self._email)
             self._abort_if_unique_id_configured()
 
-            # ``save=False`` keeps the token off disk during config-flow; we'll persist
-            # it into ``entry.data`` on success.
+            # ``save=False`` keeps the token off disk; we persist into ``entry.data``.
             self._auth = MonarchAuth()
             try:
                 session = await self._auth.login(self._email, self._password, save=False)
@@ -102,7 +120,7 @@ class MonarchInsightsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self._finalize(session.token, session.device_uuid)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="login", data_schema=STEP_LOGIN_DATA_SCHEMA, errors=errors
         )
 
     async def async_step_mfa(self, user_input: dict | None = None):
@@ -129,6 +147,54 @@ class MonarchInsightsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="mfa", data_schema=STEP_MFA_DATA_SCHEMA, errors=errors
+        )
+
+    # ------------------------------------------------------------------ token path
+
+    async def async_step_token(self, user_input: dict | None = None):
+        """Accept a raw Monarch session token (from browser DevTools) and verify it.
+
+        Validation calls ``me`` — if Monarch returns 200 with our user object we
+        persist the token; any other response fails with ``invalid_auth``.
+        """
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            token = user_input[CONF_TOKEN].strip()
+            if not token:
+                errors["base"] = "invalid_auth"
+            else:
+                device_uuid = str(uuid.uuid4())
+                auth = MonarchAuth(device_uuid=device_uuid)
+                auth.session = Session(token=token, device_uuid=device_uuid)
+                try:
+                    async with MonarchClient(auth) as client:
+                        me = await client.get_me()
+                except MonarchAuthError as exc:
+                    _LOGGER.info("monarch_insights token rejected: %s", exc)
+                    errors["base"] = "invalid_auth"
+                except Exception:  # noqa: BLE001
+                    _LOGGER.exception("monarch_insights token probe failed")
+                    errors["base"] = "unknown"
+                else:
+                    email = (me or {}).get("email")
+                    if not email:
+                        errors["base"] = "invalid_auth"
+                    else:
+                        self._email = email.strip().lower()
+                        await self.async_set_unique_id(self._email)
+                        self._abort_if_unique_id_configured()
+                        return self._finalize(token, device_uuid)
+
+        return self.async_show_form(
+            step_id="token",
+            data_schema=STEP_TOKEN_DATA_SCHEMA,
+            errors=errors,
+            description_placeholders={
+                "instructions": (
+                    "Open app.monarch.com in a browser, DevTools → Network → any "
+                    "graphql request → copy the value after 'Authorization: Token '."
+                ),
+            },
         )
 
     # ------------------------------------------------------------------ helpers
