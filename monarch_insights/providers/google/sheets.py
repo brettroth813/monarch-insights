@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Iterable, Sequence
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.google.auth import GoogleAuth
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class SheetsExporter:

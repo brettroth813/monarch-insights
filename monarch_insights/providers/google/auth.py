@@ -6,11 +6,12 @@ Bootstrap from a Mac (browser available), then move ``token.json`` to the Pi. Th
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Sequence
 
-log = logging.getLogger(__name__)
+from monarch_insights.observability import get_logger
+
+log = get_logger(__name__)
 
 DEFAULT_SCOPES = (
     "https://www.googleapis.com/auth/gmail.readonly",

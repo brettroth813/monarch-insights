@@ -1,17 +1,23 @@
-"""Alert dispatchers — where do alerts go?"""
+"""Alert dispatchers — where do alerts go?
+
+Each dispatcher implements the :class:`AlertDispatcher` protocol. Dispatchers are
+deliberately independent so that a failure in one (HA REST down, SQLite locked) does
+not block the others; the engine logs and continues. Callers pick their fan-out list
+based on deployment context (daemon uses log+store+HA; tests use log only).
+"""
 
 from __future__ import annotations
 
 import json
-import logging
 from typing import Protocol
 
 import aiohttp
 
 from monarch_insights.alerts.engine import Alert
+from monarch_insights.observability import get_logger
 from monarch_insights.storage.cache import MonarchCache
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class AlertDispatcher(Protocol):

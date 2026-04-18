@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import logging
 from datetime import datetime, timezone
 from typing import Iterable
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.google.auth import GoogleAuth
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 DEFAULT_LABELS = ("Finance",)
 

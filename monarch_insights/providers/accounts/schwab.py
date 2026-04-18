@@ -11,18 +11,18 @@ match the documented endpoints so it's swap-in-able once tokens exist.
 
 from __future__ import annotations
 
-import logging
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.accounts.base import (
     AccountSnapshot,
     StatementReference,
     TradeRecord,
 )
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 BASE = "https://api.schwabapi.com/trader/v1"
 
 

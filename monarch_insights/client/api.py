@@ -116,9 +116,12 @@ class MonarchClient:
         if operation_name:
             body["operationName"] = operation_name
 
+        # tenacity ``AsyncRetrying`` loop: retries only the exception types we specify
+        # (rate-limit + timeout). Non-retriable exceptions (auth, schema drift, 5xx)
+        # short-circuit the loop by being re-raised inside ``with attempt``. On
+        # exhaustion tenacity re-raises the final exception because ``reraise=True``.
         start = time.perf_counter()
         attempt_count = 0
-        last_error: Exception | None = None
 
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.max_retries),
@@ -131,7 +134,6 @@ class MonarchClient:
                 try:
                     result = await self._execute_once(body)
                 except Exception as exc:  # noqa: BLE001 — logged + re-raised by tenacity
-                    last_error = exc
                     log.warning(
                         "client.execute.attempt_failed",
                         extra={
@@ -152,16 +154,10 @@ class MonarchClient:
                 )
                 return result
 
-        # tenacity exhausted; ``last_error`` is the final exception we saw.
-        log.error(
-            "client.execute.exhausted",
-            extra={
-                "operation": op_name,
-                "attempts": attempt_count,
-                "error": repr(last_error),
-            },
-        )
-        raise MonarchError("execute() exhausted retries without raising")
+        # Unreachable in practice: tenacity with ``reraise=True`` either returns inside
+        # ``with attempt`` on success or re-raises the final exception on exhaustion.
+        # We keep this line to satisfy static analysers and as a belt-and-braces guard.
+        raise MonarchError("execute() exhausted retries without raising")  # pragma: no cover
 
     async def _execute_once(self, body: dict[str, Any]) -> dict[str, Any]:
         assert self._http is not None

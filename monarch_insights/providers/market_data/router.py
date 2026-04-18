@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from datetime import date
 from typing import Awaitable, Callable, Sequence, TypeVar
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.market_data.base import (
     AnalystTargets,
     Dividend,
@@ -21,7 +21,7 @@ from monarch_insights.providers.market_data.base import (
     Split,
 )
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 T = TypeVar("T")
 
 

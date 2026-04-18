@@ -21,7 +21,6 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9",
-    "gql[aiohttp]>=3.5",
     "pydantic>=2.5",
     "python-dateutil>=2.8",
     "tenacity>=8.2",
@@ -32,11 +31,26 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional heavy numerics: the Monte Carlo simulator falls back to pure-Python random
+# when numpy isn't installed, so analytics extras are recommended but not required.
 analytics = [
     "pandas>=2.1",
     "numpy>=1.26",
     "scipy>=1.11",
 ]
+# Market-data providers load lazily; install only what you'll actually use.
+market_data = [
+    "yfinance>=0.2.40",
+    "curl_cffi>=0.6",
+    "robin_stocks>=3.0",
+]
+# Google Workspace integrations — Gmail receipts, Drive vault, Calendar, Sheets.
+google = [
+    "google-api-python-client>=2.120",
+    "google-auth-oauthlib>=1.2",
+    "google-auth>=2.28",
+]
+# FastAPI surface for HA REST-sensor consumption.
 api = [
     "fastapi>=0.110",
     "uvicorn>=0.27",
@@ -44,6 +58,7 @@ api = [
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
+    "pytest-aiohttp>=1.0",
     "pytest-cov>=4.1",
     "ruff>=0.3",
     "mypy>=1.8",

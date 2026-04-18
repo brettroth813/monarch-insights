@@ -6,14 +6,13 @@ Drive auto-OCRs PDFs at upload, so ``search_text`` is effectively free OCR.
 from __future__ import annotations
 
 import asyncio
-import io
-import logging
 import mimetypes
 from pathlib import Path
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.google.auth import GoogleAuth
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class DriveVault:

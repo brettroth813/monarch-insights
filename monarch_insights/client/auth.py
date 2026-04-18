@@ -265,36 +265,25 @@ class MonarchAuth:
         await self._post("/auth/email-otp/", {"email": email})
 
     async def logout(self) -> None:
+        """Best-effort logout: post to Monarch, then clear the local session regardless.
+
+        The remote call is fire-and-forget — any failure is swallowed because the user
+        asked to log out and we don't want an HTTP hiccup to block that. The local
+        session file is always cleared.
+        """
         if self.session is None:
             return
+        import contextlib
+
+        url = f"{self.base_url}/auth/logout/"
+        headers = self._request_headers()
+        headers["Authorization"] = f"Token {self.session.token}"
         try:
-            url = f"{self.base_url}/auth/logout/"
-            headers = self._request_headers()
-            headers["Authorization"] = f"Token {self.session.token}"
             async with aiohttp.ClientSession(timeout=self.timeout) as http:
-                with contextlib_suppress():
+                with contextlib.suppress(Exception):
                     await http.post(url, headers=headers)
         finally:
             self.clear()
 
 
-def contextlib_suppress():
-    import contextlib
-
-    return contextlib.suppress(Exception)
-
-
 __all__ = ["MonarchAuth", "Session", "DEFAULT_BASE_URL", "LEGACY_BASE_URL"]
-
-
-# Defensive: make sure the module is importable without aiohttp event loop running.
-async def _smoke() -> None:
-    auth = MonarchAuth()
-    try:
-        auth.load()
-    except MonarchAuthError:
-        pass
-
-
-if __name__ == "__main__":  # pragma: no cover
-    asyncio.run(_smoke())

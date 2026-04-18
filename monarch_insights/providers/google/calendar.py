@@ -7,14 +7,14 @@ event for a given source key, we update instead of duplicating.
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from typing import Iterable
 
+from monarch_insights.observability import get_logger
 from monarch_insights.providers.google.auth import GoogleAuth
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 CALENDAR_NAME = "Monarch Insights"
 
