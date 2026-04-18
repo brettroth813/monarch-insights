@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "monarch_insights"
+version = "0.1.0"
+description = "Personal finance insight, forecasting and tax-prep library that augments Monarch Money data with manual records, designed for Home Assistant integration."
+requires-python = ">=3.11"
+authors = [{ name = "Brett Roth" }]
+license = { text = "MIT" }
+readme = "README.md"
+keywords = ["monarch", "finance", "home-assistant", "forecasting", "tax", "investments"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Home Automation",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "gql[aiohttp]>=3.5",
+    "pydantic>=2.5",
+    "python-dateutil>=2.8",
+    "tenacity>=8.2",
+    "cryptography>=41",
+    "pyyaml>=6.0",
+    "rich>=13",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+analytics = [
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+api = [
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+    "mypy>=1.8",
+    "responses>=0.24",
+]
+
+[project.scripts]
+monarch-insights = "monarch_insights.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["monarch_insights*"]
+exclude = ["tests*", "custom_components*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

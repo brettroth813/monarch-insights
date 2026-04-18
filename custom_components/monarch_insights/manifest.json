@@ -1,0 +1,18 @@
+{
+  "domain": "monarch_insights",
+  "name": "Monarch Insights",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/your-handle/monarch-insights",
+  "issue_tracker": "https://github.com/your-handle/monarch-insights/issues",
+  "iot_class": "cloud_polling",
+  "integration_type": "service",
+  "codeowners": ["@brettroth"],
+  "requirements": [
+    "aiohttp>=3.9",
+    "pydantic>=2.5",
+    "tenacity>=8.2",
+    "cryptography>=41"
+  ],
+  "dependencies": []
+}

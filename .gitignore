@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Pytest / mypy / ruff caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Databases created at runtime (cache, supplements, watchlist, events, snapshots)
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets / sessions — should never hit git
+*.pickle
+*_session*
+google_token.json
+google_client.json
+.secrets/
+.env
+.env.*
+
+# Editor / OS detritus
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs
+logs/
+*.log
+
+# Demo / test scratch output
+/tmp_*/
+scripts/out/

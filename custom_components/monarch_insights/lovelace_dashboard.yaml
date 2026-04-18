@@ -1,0 +1,101 @@
+# Sample Lovelace dashboard for Monarch Insights.
+# Drop into Settings → Dashboards → New Dashboard → "Edit in YAML".
+# Assumes default sensor names — adjust to your slugs if you've renamed entities.
+
+title: Finance
+icon: mdi:chart-line
+views:
+  - title: Overview
+    path: overview
+    icon: mdi:view-dashboard
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: glance
+            title: Snapshot
+            entities:
+              - entity: sensor.monarch_net_worth
+                name: Net worth
+              - entity: sensor.monarch_liquid_net_worth
+                name: Liquid
+              - entity: sensor.monarch_total_assets
+                name: Assets
+              - entity: sensor.monarch_total_liabilities
+                name: Liabilities
+              - entity: sensor.monarch_emergency_fund_runway
+                name: Runway (mo)
+              - entity: sensor.monarch_open_alerts
+                name: Open alerts
+
+          - type: history-graph
+            title: Net worth over time
+            hours_to_show: 720
+            refresh_interval: 600
+            entities:
+              - sensor.monarch_net_worth
+              - sensor.monarch_liquid_net_worth
+
+      - type: entities
+        title: Top alerts
+        show_header_toggle: false
+        entities:
+          - type: attribute
+            entity: sensor.monarch_open_alerts
+            attribute: alerts
+            name: Recent
+
+  - title: Accounts
+    path: accounts
+    icon: mdi:bank
+    cards:
+      - type: entities
+        title: Depository
+        entities:
+          - sensor.monarch_chase_checking_balance
+          - sensor.monarch_marcus_hys_balance
+
+      - type: entities
+        title: Brokerage
+        entities:
+          - sensor.monarch_schwab_brokerage_balance
+          - sensor.monarch_robinhood_balance
+
+      - type: entities
+        title: Credit cards
+        entities:
+          - sensor.monarch_amex_gold_balance
+          - sensor.monarch_chase_sapphire_reserve_balance
+          - sensor.monarch_citi_double_cash_balance
+          - sensor.monarch_barclays_aadvantage_balance
+          - sensor.monarch_bilt_mastercard_balance
+
+      - type: entities
+        title: Loans
+        entities:
+          - sensor.monarch_toyota_auto_loan_balance
+
+  - title: Investments
+    path: investments
+    icon: mdi:chart-line
+    cards:
+      - type: glance
+        title: Portfolio
+        entities:
+          - entity: sensor.monarch_portfolio_value
+            name: Total value
+
+      - type: entities
+        title: Concentration + drag
+        entities:
+          - type: attribute
+            entity: sensor.monarch_portfolio_value
+            attribute: concentration_top
+            name: Top holdings
+          - type: attribute
+            entity: sensor.monarch_portfolio_value
+            attribute: expense_ratio_drag_annual
+            name: ER drag (annual $)
+          - type: attribute
+            entity: sensor.monarch_portfolio_value
+            attribute: unrealized
+            name: Unrealized gain/loss

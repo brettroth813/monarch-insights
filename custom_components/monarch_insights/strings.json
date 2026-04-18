@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Monarch credentials",
+        "description": "Enter your Monarch Money email and password.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "mfa": {
+        "title": "Multi-factor authentication",
+        "description": "Provide your TOTP or email one-time code to finish login.",
+        "data": {
+          "mfa_method": "Method",
+          "mfa_code": "Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Email or password rejected by Monarch.",
+      "invalid_mfa": "MFA code rejected.",
+      "unknown": "Unexpected error — check Home Assistant logs."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Monarch Insights options",
+        "data": {
+          "refresh_interval_minutes": "Refresh interval (minutes)",
+          "low_balance_floor": "Low-balance alert floor (USD)",
+          "primary_checking_account_id": "Primary checking account ID"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+# Example automations to drop into ~/.homeassistant/automations.yaml or via the UI.
+
+- alias: Monarch — push critical alerts to phone
+  description: Routes any critical Monarch alert to the mobile companion app.
+  trigger:
+    - platform: state
+      entity_id: sensor.monarch_open_alerts
+  condition:
+    - condition: template
+      value_template: >-
+        {% set alerts = state_attr('sensor.monarch_open_alerts', 'alerts') or [] %}
+        {{ alerts | selectattr('severity', 'eq', 'critical') | list | length > 0 }}
+  action:
+    - service: notify.mobile_app_brett_iphone
+      data:
+        title: "🚨 Monarch alert"
+        message: >-
+          {% set alerts = state_attr('sensor.monarch_open_alerts', 'alerts') or [] %}
+          {% set crit = alerts | selectattr('severity', 'eq', 'critical') | list %}
+          {{ crit[0].title }}: {{ crit[0].message }}
+        data:
+          tag: monarch-critical
+          group: monarch-insights
+          priority: high
+
+- alias: Monarch — daily morning digest
+  description: Posts the rolled-up daily digest at 7am local.
+  trigger:
+    - platform: time
+      at: "07:00:00"
+  action:
+    - service: monarch_insights.run_alerts
+    - service: notify.persistent_notification
+      data:
+        title: "📊 Monarch — daily digest"
+        message: >-
+          {{ states('sensor.monarch_net_worth') }} net worth ·
+          {{ state_attr('sensor.monarch_open_alerts', 'alerts') | length }} alerts ·
+          runway {{ states('sensor.monarch_emergency_fund_runway') }}mo
+
+- alias: Monarch — low balance forecast warning
+  description: Flips a binary helper when checking is projected to dip below floor.
+  trigger:
+    - platform: state
+      entity_id: sensor.monarch_open_alerts
+  action:
+    - service: notify.mobile_app_brett_iphone
+      data:
+        title: "🟡 Checking projected to dip"
+        message: >-
+          {% set alerts = state_attr('sensor.monarch_open_alerts', 'alerts') or [] %}
+          {% set dip = alerts | selectattr('kind', 'eq', 'balance_forecast') | list %}
+          {% if dip %}{{ dip[0].message }}{% else %}—{% endif %}
+        data:
+          tag: monarch-balance
+          group: monarch-insights
+
+- alias: Monarch — refresh after market close
+  description: Pulls fresh Monarch data 30 min after US market close so portfolio sensors update.
+  trigger:
+    - platform: time
+      at: "16:30:00"
+  action:
+    - service: monarch_insights.refresh

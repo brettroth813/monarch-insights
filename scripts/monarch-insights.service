@@ -1,0 +1,19 @@
+[Unit]
+Description=Monarch Insights daemon
+Documentation=https://github.com/your-handle/monarch-insights
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=brettroth
+WorkingDirectory=%h/Documents/Claude/Projects/HomeAssistant
+ExecStart=%h/Documents/Claude/Projects/HomeAssistant/.venv/bin/python -m monarch_insights.cli.main daemon run
+Restart=on-failure
+RestartSec=15
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:%h/.local/share/monarch-insights/logs/daemon.stdout.log
+StandardError=append:%h/.local/share/monarch-insights/logs/daemon.stderr.log
+
+[Install]
+WantedBy=default.target
