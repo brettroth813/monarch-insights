@@ -1,61 +1,70 @@
 # Monarch Insights — local user config.
 #
-# Copy this file to one of the following locations on your host and edit it with
-# your real account mappings, targets, and preferences. The library looks in this
-# order and takes the first match:
+# Everything in this file is OPTIONAL. The library gets account IDs, names,
+# institutions, types, and balances directly from Monarch's API. You only need to
+# provide:
 #
+#   * Which checking account to use for the 60-day balance forecast
+#   * Filing status (Monarch doesn't know this)
+#   * Target asset allocation (drift alerts need it)
+#   * Watchlist tickers you don't own but want alerts on
+#   * Alert thresholds + which HA notify.* service receives warns
+#
+# Search order for this file (first match wins):
 #   1. $MONARCH_INSIGHTS_CONFIG (explicit env override)
 #   2. /config/monarch_insights.yaml         (Home Assistant OS)
 #   3. ~/.config/monarch-insights/user.yaml  (CLI / desktop)
 #   4. ./monarch_insights.yaml               (project root, for dev)
 #
-# This file is *local-only* and never committed to git. The repo stays generic.
+# This file stays on your machine — the repo never knows it exists.
+# Use `monarch-insights config init` to generate a minimal version automatically
+# after your first Monarch sync.
 
-# Federal filing status for the tax module.
-# Valid: single | mfj (married filing jointly) | mfs (married filing separately) | hoh
+# --- Required for most insights ---
+
+# Federal filing status — valid: single | mfj | mfs | hoh.
 filing_status: single
 
-# Which Monarch account is your primary checking. Used for the day-by-day balance
-# forecast and the low-balance alert. You'll get these IDs after your first sync;
-# `monarch-insights insight networth --by-account` prints them.
+# Which Monarch account is your primary checking. Run `monarch-insights insight
+# networth` after your first sync to see account IDs.
 primary_checking_account_id: ACT_REPLACE_ME
 
-# Human-readable labels for your accounts. The library can operate purely on Monarch
-# IDs, but aliases make alerts + digests readable ("Chase Checking is at $…" vs.
-# "ACT_1f3a… is at $…").
-accounts:
-  ACT_REPLACE_ME:
-    display_name: Primary Checking
-    institution: Your Bank
-    is_primary_checking: true
-  ACT_REPLACE_ME_2:
-    display_name: Primary Brokerage
-    institution: Your Broker
-    is_primary_brokerage: true
-  # …add one entry per account you care about.
+
+# --- Strongly recommended ---
 
 # Target asset allocation. Drift alerts fire when any bucket exceeds its threshold.
-# Buckets map via monarch_insights/insights/investments.py KNOWN_TICKER_BUCKETS.
+# Buckets map to tickers via monarch_insights/insights/investments.py::KNOWN_TICKER_BUCKETS
+# — the classifier covers ~40 common ETFs/mutual funds out of the box.
 allocation_targets:
   us_stock:   {target_pct: 60, drift_threshold_pct: 5}
   intl_stock: {target_pct: 25, drift_threshold_pct: 5}
   bond:       {target_pct: 15, drift_threshold_pct: 5}
-
-# Watchlist — symbols you want price/signal alerts on even if you don't own them.
-watchlist:
-  - symbol: VTI
-    kind: buy_below
-    target_price: 240
-  - symbol: NVDA
-    kind: alert_move
-    move_threshold_pct: 5
-  - symbol: AAPL
-    kind: alert_move
-    move_threshold_pct: 3
 
 # Alert engine tuning.
 alerts:
   low_balance_floor: 1500          # USD below which the 60-day forecast fires a warning
   concentration_threshold_pct: 15  # single ticker above this % of portfolio = alert
   price_move_threshold_pct: 5      # watchlist price-move alert threshold
-  notify_service: notify.mobile_app_your_phone   # which HA notify.* service receives warns
+  notify_service: notify.mobile_app_your_phone   # HA notify.* service for warn-tier alerts
+
+
+# --- Optional: watchlist (tickers you don't own but want alerts on) ---
+
+watchlist:
+  - {symbol: VTI,  kind: buy_below,  target_price: 240}
+  - {symbol: NVDA, kind: alert_move, move_threshold_pct: 5}
+  - {symbol: AAPL, kind: alert_move, move_threshold_pct: 3}
+
+
+# --- Optional: account aliases ---
+# Only needed if you want display names in alerts/digests to differ from Monarch's
+# labels, or to tag one account as "primary brokerage" for signal routing. If you
+# omit this section entirely, the library uses Monarch's display_name for every
+# account automatically.
+
+# accounts:
+#   ACT_1f3a…:
+#     display_name: Everyday Checking   # override Monarch's name in notifications
+#   ACT_9c4d…:
+#     display_name: Main Brokerage
+#     is_primary_brokerage: true        # used for watchlist evaluation routing
