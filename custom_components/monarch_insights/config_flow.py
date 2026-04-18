@@ -83,13 +83,33 @@ class MonarchInsightsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._auth: MonarchAuth | None = None
 
     async def async_step_user(self, user_input: dict | None = None):
-        """Entry point: offer the two auth paths as a menu."""
+        """Entry point: offer three paths — credentials, token, or CSV-only."""
         return self.async_show_menu(
             step_id="user",
             menu_options={
                 "login": "Sign in with email + password",
                 "token": "Paste an existing Monarch session token (advanced)",
+                "csv_only": "Use local CSV imports only (no Monarch account needed)",
             },
+        )
+
+    # ------------------------------------------------------------------ CSV-only path
+
+    async def async_step_csv_only(self, user_input: dict | None = None):
+        """Create an entry without any Monarch auth — cache-only operation.
+
+        For operators who've imported their Monarch CSV exports via the CLI and
+        don't want to bother with the WAF-blocked login flow. The coordinator's
+        cache fallback renders sensors entirely from imported data; re-running
+        ``monarch-insights import monarch-csv`` monthly keeps it fresh.
+        """
+        # Use a stable unique id so re-adding is idempotent — only one CSV-only
+        # entry makes sense per install.
+        await self.async_set_unique_id("csv_only")
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(
+            title="Monarch Insights (CSV only)",
+            data={CONF_EMAIL: "csv_only@local", "mode": "csv_only"},
         )
 
     # ------------------------------------------------------------------ login path

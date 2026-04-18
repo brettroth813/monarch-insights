@@ -27,6 +27,10 @@
         "data": {
           "token": "Token"
         }
+      },
+      "csv_only": {
+        "title": "CSV-only mode",
+        "description": "Creates a Monarch Insights entry with no Monarch account credentials. Sensors render entirely from the local cache populated by `monarch-insights import monarch-csv`. Use when the API is unavailable (Cloudflare WAF) or when you prefer a monthly export workflow."
       }
     },
     "error": {

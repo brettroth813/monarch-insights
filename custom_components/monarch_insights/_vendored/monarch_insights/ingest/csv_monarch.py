@@ -214,9 +214,13 @@ class MonarchCsvImporter:
         Every row also seeds an :class:`Account` row (if not already seen) so that
         transaction-only exports don't need a matching balances file to populate
         the account table.
+
+        Records a ``csv_import.balances`` entry in the ``sync_runs`` table so the
+        coordinator / CLI can render "last import at …" on the HA dashboard.
         """
         path = Path(path)
         result = ImportResult()
+        run_id = self.cache.record_sync_start(f"csv_import.balances:{path.name}")
         accounts: dict[str, Account] = {}
         snapshots: list[tuple[str, str, float]] = []
         min_date: date | None = None
@@ -264,6 +268,7 @@ class MonarchCsvImporter:
                     snapshots,
                 )
         log.info("ingest.balances.imported", extra={"count": len(snapshots), "path": str(path)})
+        self.cache.record_sync_finish(run_id, status="ok", detail=result.as_dict())
         return result
 
     # ------------------------------------------------------------------ transactions
@@ -274,9 +279,13 @@ class MonarchCsvImporter:
         Accounts that appear in the transaction file but were never seen in a
         balances import get auto-created with ``current_balance=None`` so insights
         can still use them.
+
+        Records a ``csv_import.transactions`` entry in the ``sync_runs`` table for
+        freshness tracking in HA.
         """
         path = Path(path)
         result = ImportResult()
+        run_id = self.cache.record_sync_start(f"csv_import.transactions:{path.name}")
         transactions: list[Transaction] = []
         seen_accounts: dict[str, Account] = {}
         min_date: date | None = None
@@ -359,6 +368,7 @@ class MonarchCsvImporter:
             "ingest.transactions.imported",
             extra={"count": len(transactions), "path": str(path)},
         )
+        self.cache.record_sync_finish(run_id, status="ok", detail=result.as_dict())
         return result
 
     # ------------------------------------------------------------------ helpers

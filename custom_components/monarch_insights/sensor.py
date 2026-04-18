@@ -44,6 +44,14 @@ async def async_setup_entry(
 
 
 class MonarchSensor(CoordinatorEntity, SensorEntity):
+    """One Monarch-derived value surfaced as an HA sensor.
+
+    We copy the payload's ``attributes`` at construction time and then augment
+    them on each coordinator tick with ``data_source`` + ``cache_last_import_at``
+    so operators can see at a glance whether the figures came from Monarch's
+    live API or from a CSV import (and how stale that import is).
+    """
+
     def __init__(self, coordinator, payload, kind: str) -> None:
         super().__init__(coordinator)
         self._payload = payload
@@ -53,8 +61,17 @@ class MonarchSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = payload.unit_of_measurement
         self._attr_icon = payload.icon
         self._attr_device_class = payload.device_class
-        self._attr_extra_state_attributes = payload.attributes or {}
 
     @property
     def native_value(self):
         return self._payload.state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Merge payload attrs with coordinator-level provenance."""
+        base = dict(self._payload.attributes or {})
+        data = self.coordinator.data or {}
+        base["data_source"] = data.get("data_source")
+        base["cache_last_import_at"] = data.get("cache_last_import_at")
+        base["last_refresh_at"] = data.get("last_refresh_at")
+        return base
