@@ -48,7 +48,6 @@ query GetAccounts {
     type { name display group }
     subtype { name display }
     currentBalance
-    availableBalance
     displayBalance
     isAsset
     isHidden
@@ -69,7 +68,6 @@ query GetAccounts {
       primaryColor
       plaidInstitutionId
       status
-      lastRefreshedAt
     }
   }
   householdPreferences {
@@ -78,6 +76,9 @@ query GetAccounts {
   }
 }
 """
+# Monarch (Apr 2026) rejects `availableBalance` on Account and `lastRefreshedAt` on
+# Institution as part of GetAccounts. Both removed above. The model layer keeps the
+# fields as Optional so reintroductions are zero-touch on our side.
 
 GET_ACCOUNT_TYPE_OPTIONS = """
 query GetAccountTypeOptions {
