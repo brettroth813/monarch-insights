@@ -714,6 +714,76 @@ def config_show():
         console.print(f"  {wl.symbol} ({wl.kind})")
 
 
+# --------------------------------------------------------------------- bookmarklet
+
+
+@app.command("bookmarklet")
+def bookmarklet_cmd(
+    webhook_url: str = typer.Option(
+        ...,
+        help="Full HA webhook URL, e.g. https://homeassistant.local:8123/api/webhook/<id>",
+    ),
+    copy_html: bool = typer.Option(
+        False,
+        "--copy-html",
+        help="Print an HTML page with a clickable link you can drag to the bookmarks bar.",
+    ),
+):
+    """Render the bookmarklet pre-filled with your webhook URL.
+
+    Output is the exact ``javascript:...`` string you paste as the URL of a new
+    browser bookmark. Also available as an HTML page (``--copy-html``) with a
+    draggable link if your browser's "add bookmark" dialog refuses
+    ``javascript:`` URLs (Safari / Firefox sometimes do).
+    """
+    # Keep the script compact to fit inside most browsers' URL-length caps.
+    # Captures the first outgoing fetch that carries an "Authorization: Token …"
+    # header, strips the prefix, POSTs the raw token to the configured webhook.
+    js = (
+        "(async()=>{"
+        f"const u={webhook_url!r};"
+        "const orig=window.fetch;"
+        "let done=false;"
+        "window.fetch=async(...a)=>{"
+        "const r=await orig(...a);"
+        "try{"
+        "const init=a[1]||{};"
+        "const hdrs=new Headers(init.headers||(a[0]&&a[0].headers)||{});"
+        "const auth=hdrs.get('authorization')||hdrs.get('Authorization');"
+        "if(!done&&auth&&auth.toLowerCase().startsWith('token ')){"
+        "done=true;"
+        "const tok=auth.slice(6).trim();"
+        "window.fetch=orig;"
+        "const post=await orig(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})});"
+        "const txt=await post.text();"
+        "alert(post.ok?('Token synced to HA \\u2713\\n'+txt):('HA rejected token: '+post.status+'\\n'+txt));"
+        "}"
+        "}catch(e){}"
+        "return r;"
+        "};"
+        "fetch('/api/');"
+        "setTimeout(()=>{if(!done){window.fetch=orig;alert('No Monarch request observed in 8s. Try navigating inside Monarch first.');}},8500);"
+        "})();"
+    )
+    bookmarklet = f"javascript:{js}"
+
+    if copy_html:
+        html = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<title>Monarch Sync Bookmarklet</title></head><body>"
+            "<h2>Drag this to your bookmarks bar:</h2>"
+            f"<p><a href=\"{bookmarklet}\">Sync Monarch &rarr; HA</a></p>"
+            "</body></html>"
+        )
+        console.print(html)
+    else:
+        console.print(bookmarklet)
+        console.print(
+            "\n[dim]Paste the line above as the URL of a new browser bookmark. "
+            "Rerun with --copy-html to get a draggable HTML page instead.[/]"
+        )
+
+
 def main():  # pragma: no cover
     app()
 

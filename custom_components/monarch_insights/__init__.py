@@ -27,6 +27,10 @@ from homeassistant.core import HomeAssistant  # noqa: E402
 
 from .const import DOMAIN, PLATFORMS  # noqa: E402
 from .coordinator import MonarchInsightsCoordinator  # noqa: E402
+from .webhook import (  # noqa: E402
+    async_register_webhook,
+    async_unregister_webhook,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,10 +39,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Configure a single Monarch Insights instance.
 
     Creates the coordinator, runs the first refresh, forwards to the sensor platform,
-    and registers the ``monarch_insights.refresh`` service. Any error during the first
-    refresh is propagated so Home Assistant marks the entry ``setup_retry`` rather than
-    silently loading a broken integration.
+    registers the token-push webhook, and registers the ``monarch_insights.refresh``
+    service. Any error during the first refresh is propagated so Home Assistant marks
+    the entry ``setup_retry`` rather than silently loading a broken integration.
     """
+    # Register the token-push webhook *before* the first refresh. If the refresh fails
+    # (stale token, schema drift), the webhook is still live so the user can POST a
+    # fresh token and trigger recovery without re-adding the integration.
+    webhook_id = await async_register_webhook(hass, entry)
+
     coordinator = MonarchInsightsCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
 
@@ -49,7 +58,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.async_request_refresh()
 
     hass.services.async_register(DOMAIN, "refresh", _refresh)
-    _LOGGER.info("monarch_insights setup complete for entry %s", entry.entry_id)
+    _LOGGER.info(
+        "monarch_insights setup complete for entry %s (webhook id %s)",
+        entry.entry_id,
+        webhook_id,
+    )
     return True
 
 
@@ -58,4 +71,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        await async_unregister_webhook(hass, entry)
     return unload_ok
