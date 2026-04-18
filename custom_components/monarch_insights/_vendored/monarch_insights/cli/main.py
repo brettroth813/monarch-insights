@@ -58,6 +58,7 @@ daemon_app = typer.Typer(help="Long-running scheduler daemon")
 watchlist_app = typer.Typer(help="Stock watchlist management")
 events_app = typer.Typer(help="Query the structured event log")
 config_app = typer.Typer(help="Local user-config file (monarch_insights.yaml)")
+import_app = typer.Typer(help="Bulk data import (Monarch CSV exports, etc.)")
 
 app.add_typer(auth_app, name="auth")
 app.add_typer(sync_app, name="sync")
@@ -71,6 +72,7 @@ app.add_typer(daemon_app, name="daemon")
 app.add_typer(watchlist_app, name="watchlist")
 app.add_typer(events_app, name="events")
 app.add_typer(config_app, name="config")
+app.add_typer(import_app, name="import")
 
 # One-time bootstrap flows for Google / Schwab / Robinhood live in their own module
 # so this file stays readable. Import after the sub-apps are registered so Typer
@@ -712,6 +714,70 @@ def config_show():
     console.print(f"[bold]watchlist:[/] {len(cfg.watchlist)} entries")
     for wl in cfg.watchlist:
         console.print(f"  {wl.symbol} ({wl.kind})")
+
+
+# --------------------------------------------------------------------- import
+
+
+@import_app.command("monarch-csv")
+def import_monarch_csv(
+    transactions: Path | None = typer.Option(
+        None, "--transactions", "-t", help="Path to a Monarch Transactions.csv export."
+    ),
+    balances: Path | None = typer.Option(
+        None, "--balances", "-b", help="Path to a Monarch Balances.csv export."
+    ),
+):
+    """Import Monarch Money CSV exports into the local cache.
+
+    Either file is optional; pass whichever you have. The importer is idempotent —
+    re-running it with the same file is a no-op beyond refreshing timestamps. Run
+    this monthly when Monarch drops updated exports and every existing insight
+    command (``insight networth``, ``insight cashflow``, etc.) will reflect the
+    new data immediately.
+    """
+    if not transactions and not balances:
+        console.print("[red]Pass at least one of --transactions / --balances[/]")
+        raise typer.Exit(1)
+
+    from monarch_insights.ingest.csv_monarch import MonarchCsvImporter
+
+    importer = MonarchCsvImporter()
+
+    if balances:
+        if not balances.exists():
+            console.print(f"[red]{balances} not found[/]")
+            raise typer.Exit(1)
+        console.print(f"[dim]reading balances[/] {balances}")
+        result = importer.import_balances(balances)
+        _render_import_result("Balances", result)
+
+    if transactions:
+        if not transactions.exists():
+            console.print(f"[red]{transactions} not found[/]")
+            raise typer.Exit(1)
+        console.print(f"[dim]reading transactions[/] {transactions}")
+        result = importer.import_transactions(transactions)
+        _render_import_result("Transactions", result)
+
+
+def _render_import_result(label: str, result) -> None:
+    table = Table(title=f"{label} import")
+    table.add_column("metric")
+    table.add_column("value", justify="right")
+    table.add_row("accounts_seen", str(result.accounts_seen))
+    if result.balances_imported:
+        table.add_row("balances_imported", str(result.balances_imported))
+    if result.transactions_imported:
+        table.add_row("transactions_imported", str(result.transactions_imported))
+    table.add_row("skipped_rows", str(result.skipped_rows))
+    start, end = result.date_range
+    table.add_row("date_range", f"{start or '—'} → {end or '—'}")
+    console.print(table)
+    if result.errors:
+        console.print("[yellow]first errors:[/]")
+        for err in result.errors[:5]:
+            console.print(f"  - {err}")
 
 
 # --------------------------------------------------------------------- bookmarklet
